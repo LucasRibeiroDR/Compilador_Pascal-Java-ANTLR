@@ -6,108 +6,126 @@ grammar Pascal;
     package pequenopascal.parser;
     import pascal.util.*;
 }
-//program "string";
-//var y : integer; 
-//begin 
-//print "";
+@members{
+String traducao = "";
+String aux = "";
+char open = 123;
+char close = 125;
+String num = "";
+String num2 = "";
 
 
 
-//end
-//begin 
+}
 
-//end
-
-program : PROGRAM STR EOL block  #programStart          
+program : PROGRAM STR EOL block  {traducao+="#include<iostream>\n";
+                                  traducao+="#include<string>\n";
+                                  traducao+="using namespace std;\n";
+                                  traducao+="int main()"+open+"\n"; 
+ 
+}#programStart          
         ;
 
 
-block   : varDeclapart?       
+block   : vardeclablock?       
           proceduredeclapart?
-          function?             
+          function?           
           block1                 #blocks
         ;
 
+var : ID (varDeclapart)+             #varVar 
+    ;
+vardeclablock: VAR varDeclapart*
+    ;    
+varDeclapart :  ID (',' ID)* ATTR simpletype EOL {traducao+=$ID.text+";"+"\n";}   #v4r 
+        | ID {aux+=$ID.text;} (',' ID)* ':=' arraytype      #v4rArrayTp
+        | ID                                #varID 
+        | ID '['expr']'                     #indexedVar
+    ;
 
-types : INTEGER                #typeInteger
-        | FLOAT                #typeFloat
-        | CHAR                 #typeChar     
-        | STRING               #typeString 
-        | INT                  #typeInt     
-        | BOOLEAN              #typeBoolean  
+
+simpletype : INTEGER      {traducao+="int ";}          #typeInteger
+        | FLOAT           {traducao+="float ";}    #typeFloat   
+        | STRING          {traducao+="string ";}     #typeString 
+        | BOOLEAN         {traducao+="boolean ";}    #typeBoolean  
         ;
-proceduredeclapart: PROCEDURE ID OPEN (varDeclapart)* CLOSE EOL var? #proced
+arraytype: ARRAY '['indexRange']' OF simpletype {traducao+=aux+"["+num2+"-"+num+"];"+"\n";}  #arrayTypeIDR
+        ;
+
+indexRange: NUM {num+=$NUM.text;} '..' NUM    {num2+=$NUM.text;}    #idrange
+           ;
+
+proceduredeclapart: 
         ;   
 
+function : 
+        
+;
 
-function : FUNCTION ID OPEN (varDeclapart)+ CLOSE ATTR types EOL #funct
+
+block1 : BEGIN  (stmt)* END'.'  #bl0ck1
+        | BEGIN  (stmt)* END  {{traducao+="return 0;"+close;}}{System.out.println(traducao);}{SalvarArquivo.get(traducao);}   #bl0ck2
         ;
 
 
-block1 : BEGIN (stmt)* END   #bl0ck1
+stmt    : write              #stmtwrite
+        | read              #stmtRead
+        | attr              #stmtAttr
+        | expr               #stmtExpr
+        | cond               #stmtCond
+        | while1             #stmtwhile1    
+        | for1                #stmtfor   
         ;
 
+while1 : WHILE {traducao+="while(";} OPEN condExpr CLOSE {traducao+=")";} DO {traducao+=open+"\n";} x=block1 {traducao+=close;}    #whili1;    
 
-var : ID (var1)+             #varVar 
-    ;
-
-var1 :  ID (',' ID)* ATTR types EOL  #v4r 
-    ;
-
-varDeclapart : VAR var1     #varDeclap
-    ;
-
-stmt    : print EOL             #stmtPrint
-        | read  EOL             #stmtRead
-        | attr  EOL             #stmtAttr
-        | expr  EOL             #stmtExpr
-        | cond                  #stmtCond
-        | write EOL             #stmtwrite
-        | while1 EOL             #stmtwhile1    
-        | for1 EOL               #stmtfor
-        ;
-//ATÉ AQUI TUDO NA PAZ
-
-read    : READ OPEN ID CLOSE          #readVar
+for1 :  FOR {traducao+="for(";;} OPEN attr? {traducao+=";";} EOL condExpr {traducao+=";";}EOL b2 = attr CLOSE {traducao+=")"+open;}  b1=block1 {traducao+=close;} #f0r1
         ;
 
-for1 : FOR OPEN attr? EOL condExpr EOL attr? CLOSE block bl=block at=attr #f0r1
-        ;
-
-write : WRITE OPEN STR CLOSE        #writeSTR
-      | WRITE OPEN expr CLOSE       #writeEXP
-      | WRITELN OPEN STR CLOSE      #writelnSTR
-      | WRITELN OPEN expr CLOSE     #writelnEXP
-      ;
-
-while1 : WHILE condExpr DO x=block1;
-
-
-cond    : IF '('condExpr')' b1=block1                  #ifStmt
-        | IF '('condExpr')' b1=block1 ELSE b2=block1    #ifElseStmt 
+cond    : IF {traducao+="if(";} OPEN condExpr CLOSE {traducao+=")"+open;} THEN b1=block1  {traducao+=close;}                #ifStmt
+        | IF {traducao+="if(";} OPEN condExpr CLOSE {traducao+=")"+open;} THEN b1=block1  {traducao+=close;} ELSE {traducao+="else"+open;} b2=block1    #ifElseStmt 
         ;
 
 condExpr: expr                                              #condExpresion
-        | expr relop=('>'|'<'|'=='|'>='|'<='|'!=') expr     #condRelOp
+        | expr relop=('>'|'<'|'=='|'>='|'<='|'!=') {traducao+=$relop.text;} expr     #condRelOp
         ;
 
-attr    : ID IS expr     #attrExpr
+
+write : WRITE  STR     {traducao+="cout<<"+$STR.text+"<<endl;"+"\n";}    #writeSTR
+      | WRITE   {traducao+="cout<<";}   expr {traducao+="<<endl;"+"\n";}         #write1
+      
+      ;
+
+read    : READ  ID  {traducao+="cin>>"+$ID.text+";"+"\n";}       #readVar
         ;
 
-expr    : expr1 '+' expr    #exprPlus
-        | expr1 '-' expr    #exprMinus
+attr    :   varDeclapart  {traducao+=$varDeclapart.text+"=";} ':=' expr  {traducao+=";"+"\n";} #attrExpr
+        
+        
+        ;
+
+
+
+expr    : expr1 '+' {traducao+="+";} expr    #exprPlus
+        | expr1 '-' {traducao+="-";} expr    #exprMinus
         | expr1             #expr1Empty
         ;
-expr1   : expr2 '*' expr    #expr1Mult
-        | expr2 '/' expr    #expr1Div
+expr1   : expr2 '*' {traducao+="*";} expr    #expr1Mult
+        | expr2 '/' {traducao+="/";}expr    #expr1Div
         | expr2             #expr2Empty
         ;
 
-expr2   : '(' expr ')'      #expr2Par
-        | NUM               #expr2Num
-        | VAR               #expr2Var
-        | STR               #expr2Str
+expr2   : OPEN expr CLOSE       #expr2Par
+        | NUM    {traducao+=$NUM.text;}          #expr2Num
+        | ID     {traducao+=$ID.text;}         #expr2Var
+        | STR    {traducao+=$STR.text;}          #expr2Str
+        | bool              #bool1
         ;
+
+bool : TRUE   {traducao+=$TRUE.text;} #exprTrue
+     | FALSE  {traducao+=$FALSE.text;} #exprFalse
+     ; 
+
 
 
 
@@ -118,48 +136,28 @@ print   : PRINT STR         #printStr
 
 
 // TOKENS
-
-
-FOR      : 'for';
-INTEGER  : 'integer';
-BOOLEAN  : 'boolean' ;
-FLOAT    : 'float' ;
-STRING   : 'string' ;
-TRUE     : 'true';
-FALSE    : 'false';
-INT      : 'int';
-CHAR     : 'char';
-DO       : 'do';
-
-
-// TOKENS
-
-VAR      : 'v''a''r';
-DOT      : '.';
-OR       : 'or';
-AND      : 'and';
-NOT      : 'not';
-THEN     : 'then';
-OF       : 'of'; 
-WHILE    : 'while';
-BEGIN    : 'begin';
-END      : 'end';
-WRITE    : 'write';
-ARRAY    : 'array';
-PROGRAM  : 'program';
-PROCEDURE: 'procedure';
-
-// TOKENS
+FALSE   : 'false';
+TRUE    : 'true';
+THEN    : 'then';
+STRING  : 'string';
+WHILE   : 'while';
+FOR     : 'for';
+DO      : 'do';
+BEGIN   : 'begin';
+END     : 'end';
+WRITE   : 'write';
+PROGRAM : 'program';
+VAR     : 'var';
+INTEGER : 'integer';
+FLOAT   : 'float';
+BOOLEAN : 'boolean';
+ARRAY   : 'array';
+OF      : 'of';
 IF      : 'if';
 ELSE    : 'else';
-OPENSB  : '[';
-CLOSSB  : ']';
-MQMQ    : '<>';
 GT      : '>' ;
 LT      : '<' ;
-ATTR    : ':';
 EQ      : '==';
-PTI     : ':=';
 GE      : '>=';
 LE      : '<=';
 NE      : '!=';
@@ -175,10 +173,29 @@ IS      : '=' ;
 EOL     : ';' ;
 PRINT   : 'print' ;
 READ    : 'read' ;
-NUM     : [0-9]+ ;
-FUNCTION: 'function';
-ID      : [a-zA-Z][a-zA-Z0-9_]*;
+NUM     : [0-9]+('.'[0-9]+)? ;
+ID      : [a-zA-Z][a-zA-Z0-9_]*('['[0-9]']')?;
 STR     : '"' ('\\' ["\\] | ~["\\\r\n])* '"';
 WS      : [\n\r \t]+ -> skip;
-READLN  : 'readln';
-WRITELN   : 'writeln';
+ATTR    : ':=';
+
+
+
+
+//ARRAY    : 'array';
+
+
+//OPENSB  : '[';
+///CLOSSB  : ']';
+//MQMQ    : '<>';
+
+
+
+
+
+
+
+
+
+
+
